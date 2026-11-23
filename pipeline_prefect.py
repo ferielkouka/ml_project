@@ -1,19 +1,13 @@
+cat > pipeline_prefect.py << 'EOF'
 """
 pipeline_prefect.py - Orchestration du pipeline ML Diabetes avec Prefect.
 """
-
 import subprocess
 import sys
 
 from prefect import flow, task, get_run_logger
 
-from model_pipeline import (
-    prepare_data,
-    train_model,
-    evaluate_model,
-    save_model,
-    load_model,
-)
+from model_pipeline import prepare_data, train_model, evaluate_model, save_model, load_model
 
 DATA_PATH = "diabetic_data_prepared.csv"
 MODEL_PATH = "diabetes_model.joblib"
@@ -36,11 +30,16 @@ def _run(cmd, check=True):
 
 # ======================= TASKS : DONNÉES / MODÈLE =======================
 
+@task(name="git-pull")
+def task_git_pull():
+    """0) Récupérer la dernière version du projet depuis GitHub."""
+    _run(["git", "pull", "origin", "main"])
+
 
 @task(name="install-dependencies")
 def task_install():
     """1) Installer les dépendances du projet."""
-    _run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    _run([sys.executable, "-m", "pip", "install", "-q", "-r", "requirements.txt"])
 
 
 @task(name="prepare-data")
@@ -75,7 +74,6 @@ def task_evaluate(model, X_test, y_test):
 
 # ======================= TASKS : QUALITÉ DU CODE =======================
 
-
 @task(name="format-code")
 def task_format():
     """Formatage du code avec black (uniquement nos 3 fichiers)."""
@@ -85,10 +83,7 @@ def task_format():
 @task(name="quality-code")
 def task_quality():
     """Qualité du code avec flake8 (les remarques sont affichées sans bloquer)."""
-    _run(
-        [sys.executable, "-m", "flake8", "--max-line-length=120", *CODE_FILES],
-        check=False,
-    )
+    _run([sys.executable, "-m", "flake8", "--max-line-length=120", *CODE_FILES], check=False)
 
 
 @task(name="security-code")
@@ -105,7 +100,6 @@ def task_tests():
 
 # ======================= FLOWS =======================
 
-
 @flow(name="code", log_prints=True)
 def flow_code():
     """Formatage -> qualité -> sécurité -> tests unitaires."""
@@ -117,7 +111,8 @@ def flow_code():
 
 @flow(name="all", log_prints=True)
 def flow_all():
-    """Dépendances -> code -> préparer -> entraîner -> sauvegarder -> évaluer."""
+    """Git pull -> dépendances -> code -> préparer -> entraîner -> sauvegarder -> évaluer."""
+    task_git_pull()
     task_install()
     task_format()
     task_quality()
@@ -158,8 +153,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Pipeline Prefect - Diabetes")
-    parser.add_argument(
-        "--flow", required=True, choices=FLOWS.keys(), help="flow à lancer"
-    )
+    parser.add_argument("--flow", required=True, choices=FLOWS.keys(), help="flow à lancer")
     args = parser.parse_args()
     FLOWS[args.flow]()
+EOF
