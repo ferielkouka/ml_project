@@ -1,3 +1,4 @@
+cat > pipeline_prefect.py << 'EOF'
 """
 pipeline_prefect.py - Orchestration du pipeline ML Diabetes avec Prefect.
 """
@@ -155,3 +156,4 @@ if __name__ == "__main__":
     parser.add_argument("--flow", required=True, choices=FLOWS.keys(), help="flow à lancer")
     args = parser.parse_args()
     FLOWS[args.flow]()
+EOF
