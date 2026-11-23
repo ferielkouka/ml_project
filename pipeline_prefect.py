@@ -1,4 +1,3 @@
-cat > pipeline_prefect.py << 'EOF'
 """
 pipeline_prefect.py - Orchestration du pipeline ML Diabetes avec Prefect.
 """
@@ -98,6 +97,19 @@ def task_tests():
     _run([sys.executable, "-m", "pytest", "-q", "test_pipeline.py"])
 
 
+# ======================= TASK : API =======================
+
+@task(name="run-api")
+def task_api():
+    """Lancer l'API FastAPI (bloquant : Ctrl+C pour arrêter)."""
+    logger = get_run_logger()
+    logger.info("API sur http://127.0.0.1:8000/docs")
+    subprocess.run(
+        [sys.executable, "-m", "uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+        check=True,
+    )
+
+
 # ======================= FLOWS =======================
 
 @flow(name="code", log_prints=True)
@@ -140,7 +152,14 @@ def flow_evaluate():
     task_evaluate(model, X_test, y_test)
 
 
+@flow(name="api", log_prints=True)
+def flow_api():
+    """Lancer l'API FastAPI."""
+    task_api()
+
+
 FLOWS = {
+    "api": flow_api,
     "all": flow_all,
     "code": flow_code,
     "train": flow_train,
@@ -156,4 +175,3 @@ if __name__ == "__main__":
     parser.add_argument("--flow", required=True, choices=FLOWS.keys(), help="flow à lancer")
     args = parser.parse_args()
     FLOWS[args.flow]()
-EOF

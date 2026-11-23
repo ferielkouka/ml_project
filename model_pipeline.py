@@ -170,3 +170,27 @@ def load_model(model_path="diabetes_model.joblib"):
     model = joblib.load(model_path)
     print(f"Modèle chargé depuis : {model_path}")
     return model
+
+
+def predict(model, features):
+    """
+    Prédit la réadmission pour UN patient.
+    features : dict {nom_variable: valeur}. Les variables absentes valent 0.
+    """
+    if not features:
+        raise ValueError("Aucune variable fournie.")
+
+    expected = list(model.feature_names_in_)
+    unknown = [name for name in features if name not in expected]
+    if unknown:
+        raise ValueError(f"Variables inconnues : {unknown}")
+
+    X = pd.DataFrame([features]).reindex(columns=expected, fill_value=0)
+    prediction = int(model.predict(X)[0])
+    probability = float(model.predict_proba(X)[0, 1])
+
+    return {
+        "prediction": prediction,
+        "probabilite_readmission": round(probability, 4),
+        "resultat": "Réadmis dans les 30 jours" if prediction == 1 else "Non réadmis",
+    }
